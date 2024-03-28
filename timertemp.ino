@@ -34,10 +34,11 @@ int time_goal = 0;
 int time_is = 0;
 int time_left = 0;
 int mintime = 0;
-int maxtime = 10*60;
 bool running = false;
 bool state;
 unsigned long starttime;
+const int maxtime = 10*60;
+const float th_temp = 0.5;
 
 int temp_is = 0;
 int temp_goal = 0;
@@ -87,7 +88,7 @@ void sensor_debug(){
     // Search the wire for address
     if(sensor_temp.getAddress(tempDeviceAddress, i))
 	{
-		Serial.print("Found device ");
+		Serial.print("Found Sensor ");
 		Serial.print(i, DEC);
 		Serial.print(" with address: ");
 		printAddress(tempDeviceAddress);
@@ -108,28 +109,6 @@ void sensor_debug(){
 		Serial.print(" but could not detect address. Check power and cabling");
 	}
   }
-}
-
-// function to print the temperature for a device
-void printTemperature(DeviceAddress deviceAddress)
-{
-  // method 1 - slower
-  //Serial.print("Temp C: ");
-  //Serial.print(sensors.getTempC(deviceAddress));
-  //Serial.print(" Temp F: ");
-  //Serial.print(sensors.getTempF(deviceAddress)); // Makes a second call to getTempC and then converts to Fahrenheit
-
-  // method 2 - faster
-  float tempC = sensor_temp.getTempC(deviceAddress);
-  if(tempC == DEVICE_DISCONNECTED_C) 
-  {
-    Serial.println("Error: Could not read temperature data");
-    return;
-  }
-  Serial.print("Temp C: ");
-  Serial.print(tempC);
-  Serial.print(" Temp F: ");
-  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
 }
 
 
@@ -158,17 +137,18 @@ void check_time(){
   }
   if(running && state == STATE_TEMP){
     sensor_temp.requestTemperatures();
-    temp_is = (int)sensor_temp.getTempCByIndex(0);
+    float temp_prec = sensor_temp.getTempCByIndex(0);
+    temp_is = (int)temp_prec;
     if(DEBUG){
       Serial.print(temp_is);
       Serial.print(" --> ");
       Serial.println(temp_goal);
     }
-    if(temp_is <= temp_goal){
+    if(temp_prec <= (temp_goal - th_temp)){
       digitalWrite(RELAIS,HIGH);
       if(DEBUG) Serial.println(" Relais ein");
     }
-    else{
+    else if (temp_prec >= (temp_goal + th_temp)){
       digitalWrite(RELAIS,LOW);
       if(DEBUG) Serial.println(" Relais aus");
     }
@@ -280,8 +260,8 @@ void lcdwrite(){
 void setup() {
   // Debugging output
   Serial.begin(9600);
-  //sensor_temp.begin();
-  //if(DEBUG){sensor_debug();}
+  sensor_temp.begin();
+  if(DEBUG){sensor_debug();}
   pinMode(SW_CHOICE, INPUT);
   pinMode(BUTTON_START, INPUT);
   pinMode(RELAIS, OUTPUT);
